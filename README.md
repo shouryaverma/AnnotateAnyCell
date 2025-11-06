@@ -68,11 +68,12 @@ The repository will include:
 If you use AnnotateAnyCell in your research, please cite:
 
 ```bibtex
-@article{annotateanycell2024,
+@article{verma2025annotateanycell,
   title={AnnotateAnyCell: Open-Source AI Framework for Efficient Annotation in Digital Pathology},
-  author={Verma, Shourya and others},
-  journal={},
-  year={2024}
+  author={Verma, Shourya and Malusare, Aditya and Wang, Mengbo and Wang, Luopin and Mahapatra, Arpan and English, Abigail Leigh and Cox, Abigail D and Broman, Meaghan and de Brot, Simone and Burcham, Grant and others},
+  journal={bioRxiv},
+  year={2025},
+  publisher={Cold Spring Harbor Laboratory}
 }
 ```
 
