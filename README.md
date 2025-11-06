@@ -2,7 +2,7 @@
 
 Open-source semi-supervised deep learning framework for efficient annotation and analysis of whole slide images in digital pathology.
 
-[![Paper](https://img.shields.io/badge/Paper-Available-blue)](https://github.com/shouryaverma/AnnotateAnyCell)
+[![Paper](https://img.shields.io/badge/Paper-Available-blue)](https://www.biorxiv.org/content/10.1101/2025.11.02.686114v1)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
