@@ -11,6 +11,8 @@ Open-source semi-supervised deep learning framework for efficient annotation and
 
 AnnotateAnyCell is an intelligent interactive web-based platform that enables rapid annotation of cellular structures in histopathological images. The framework integrates active contrastive learning with dimensionality reduction techniques to facilitate efficient exploration and labeling of cells at scale.
 
+![Overview](annotate_main.png)
+
 **Key Capabilities:**
 - Interactive annotation in learned embedding space using UMAP visualization
 - Active learning mechanism that improves with human-in-the-loop feedback
