@@ -625,6 +625,7 @@ def _stream_subprocess(job: ProgressJob, cmd: list[str], env: dict, log_path: st
         try:
             for line in proc.stdout:
                 logf.write(line)
+                logf.flush()
                 stripped = line.strip()
                 match = PROGRESS_RE.match(stripped)
                 if match:
