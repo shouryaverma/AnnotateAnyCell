@@ -12,7 +12,7 @@ Upload any histopathology slide (up to **7000 x 7000 px**), segment cells and nu
 
 | Annotation Workspace | Whole-Slide & Analysis View |
 | :---: | :---: |
-| ![Annotation Workspace](assets/main_ui.png) | ![Results and Analysis](assets/output_ui.png) |
+| ![Annotation Workspace](assets/main_ui_v2.png) | ![Results and Analysis](assets/output_ui_v2.png) |
 
 - **UMAP View**: Interactive WebGL embedding with hover previews, live Cell Size & N/C Ratio histograms, attribute coloring, version snapshots, and **Update Clusters** active learning.
 - **Grid View**: Filter Ground Truth (`GT`), AI Predictions (`PRED`), or `ALL` tiles by any combination of morphological attributes.
