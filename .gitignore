@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Local runtime state & secrets
+.env
+.annotator_secret_key
+annotator_server.sh
+data/
+logs/
+*.log
+
+# Per-slide caches & user-specific outputs
+**/virchow2_cache/
+**/finetuned_classifier*.pth
+**/predictions_*.json
+**/annotation_data_user_*.csv
+
+# Training outputs
+results/
+results_mitotic/
+metastasis_results/
+.DS_Store
+
+**/virchow2_matrix*

@@ -1,67 +1,135 @@
 # AnnotateAnyCell
 
-Open-source semi-supervised deep learning framework for efficient annotation and analysis of whole slide images in digital pathology.
+Open-source semi-supervised deep learning framework for cell segmentation, morphological annotation, and active learning in digital pathology.
 
-[![Paper](https://img.shields.io/badge/Paper-Available-blue)](https://www.biorxiv.org/content/10.1101/2025.11.02.686114v1)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![AnnotateAnyCell Overview](assets/annotate_main.png)
+
+Upload any histopathology slide (up to **7000 × 7000 px**), segment cells and nuclei automatically with **Cellpose**, explore **Virchow2**-powered morphological predictions across **UMAP**, **Grid**, and **Full-Slide** views, manually lasso missed cells, and fine-tune/re-cluster on the fly.
 
 ---
-
-## Overview
-
-AnnotateAnyCell is an intelligent interactive web-based platform that enables rapid annotation of cellular structures in histopathological images. The framework integrates active contrastive learning with dimensionality reduction techniques to facilitate efficient exploration and labeling of cells at scale.
-
-![Overview](annotate_main.png)
-
-**Key Capabilities:**
-- Interactive annotation in learned embedding space using UMAP visualization
-- Active learning mechanism that improves with human-in-the-loop feedback
-- Multi-modal cellular representation (raw patches, isolated regions, semantic masks)
-- Real-time model retraining with live progress updates
-- Quantitative feature extraction and analysis at cellular resolution
 
 ## Interface
 
-### Annotation Workspace
+| Annotation Workspace | Whole-Slide & Analysis View |
+| :---: | :---: |
+| ![Annotation Workspace](assets/main_ui.png) | ![Results and Analysis](assets/output_ui.png) |
 
-![Main Annotation Interface](main_ui.png)
-
-The annotation interface features three coordinated panels:
-- **Left:** Workflow guide with nuclear size and N/C ratio distributions
-- **Center:** Interactive UMAP embedding where cells cluster by morphological similarity
-- **Right:** High-resolution cell preview with morphological annotation controls
-
-### Results and Analysis
-
-![Output Interface](output_ui.png)
-
-The output interface provides:
-- Annotation summary statistics and distribution analysis
-- Whole slide visualization with spatial location markers
-- Individual cell inspection and detailed morphological classifications
-- CSV export for downstream computational analysis
+- **UMAP View**: Interactive WebGL embedding with hover previews, live Cell Size & N/C Ratio histograms, attribute coloring, version snapshots, and **Update Clusters** active learning.
+- **Grid View**: Filter Ground Truth (`GT`), AI Predictions (`PRED`), or `ALL` tiles by any combination of morphological attributes.
+- **Slide View**: Pan/zoom across `RAW`, `CELLS`, `OVERLAY`, and `MASK` layers, dim unlabeled regions, or click **Add Cell** to outline missed cells manually.
+- **Keyboard Shortcuts**: `Enter` (save), `←` / `→` (prev/next cell), `Esc` (close), and click anywhere on the 512×512 preview to jump to a neighboring cell.
 
 ---
 
-## Applications
+## Morphological Attributes
 
-- Accelerated annotation of large-scale histopathological datasets
-- Cancer biology research requiring cellular phenotype quantification
-- Personalized medicine studies analyzing tissue heterogeneity
-- Clinical pathology workflows for diagnostic feature extraction
+Each segmented cell is classified across 5 biologically constrained heads:
+
+| Attribute | Classes |
+| :--- | :--- |
+| **Mitotic** | `None`, `Mitotic Figure`, `Bizarre Figure` |
+| **Chromatin** | `None`, `Vesicular Chromatin` |
+| **Nucleoli** | `None`, `Single Nucleoli`, `Multiple Nucleoli` |
+| **Prominent** | `None`, `Prominent Nucleoli` |
+| **Shape** | `None`, `Circle`, `Oval`, `Irregular Shape` |
 
 ---
 
-## Code Release
+## Quick Start
 
-**Status:** Code and demo will be available upon paper acceptance.
+Python 3.10–3.12 with an NVIDIA GPU is recommended (CPU fallback is supported).
 
-The repository will include:
-- Complete annotation framework implementation
-- Preprocessing and segmentation pipelines
-- Active learning and embedding generation modules
-- Web interface and visualization tools
-- Documentation and usage examples
+```bash
+git clone [https://github.com/shouryaverma/AnnotateAnyCell.git](https://github.com/shouryaverma/AnnotateAnyCell.git)
+cd AnnotateAnyCell
+
+python -m venv .venv
+source .venv/bin/activate
+
+# Install PyTorch (see [https://pytorch.org](https://pytorch.org) for CUDA builds)
+pip install torch torchvision
+
+# Install app dependencies (Cellpose 3 is pinned for cyto3/nuclei models)
+pip install -r requirements.txt
+```
+
+### Virchow2 Setup (for AI Predictions & Update Clusters)
+
+Feature extraction uses the gated Hugging Face model [`paige-ai/Virchow2`](https://huggingface.co/paige-ai/Virchow2):
+
+1. Request access at [huggingface.co/paige-ai/Virchow2](https://huggingface.co/paige-ai/Virchow2).
+2. Authenticate locally:
+   ```bash
+   huggingface-cli login
+   # or: export HF_TOKEN=hf_your_token_here
+   ```
+
+### Launch Locally
+
+```bash
+./scripts/run_local.sh
+# or: python annotator_server.py
+```
+
+Open **http://127.0.0.1:5006**, sign in with any username (e.g., `demo`), and click **+ UPLOAD NEW SLIDE** in the sidebar to upload and preprocess your own `.png`, `.jpg`, or `.tif`/`.tiff` slide (up to `7000 × 7000 px`).
+
+---
+
+## Hosting Online with MongoDB Atlas
+
+By default, the app uses zero-config local **SQLite** (`data/annotator.db`). To run online for multiple users with **MongoDB Atlas**:
+
+```bash
+cp .env.example .env
+# Edit .env with MONGO_URI (or MONGO_USERNAME/PASSWORD/HOST), MONGO_DB, ALLOWED_USERS, and HF_TOKEN
+./scripts/run_mongo.sh
+```
+
+---
+
+## CLI Pipelines
+
+```bash
+# Preprocess a slide from the command line
+python preprocess.py \
+  --slide-name MySlide \
+  --work-dir ./slides \
+  --checkpoint weights/multihead_classifier.pth \
+  --mitotic-checkpoint weights/mitotic_classifier.pth
+
+# Run batch predictions on preprocessed slides
+python model_predict.py \
+  --checkpoint weights/multihead_classifier.pth \
+  --mitotic-checkpoint weights/mitotic_classifier.pth \
+  --mitotic_threshold 0.9 \
+  --slides ./slides/MySlide
+
+# Train the multi-head classifier from scratch
+python model_train.py \
+  --slide_dirs ./slides/MySlide \
+  --checkpoint_out weights/multihead_classifier.pth
+```
+
+---
+
+## Repository Structure
+
+```text
+├── annotator_server.py     # Flask + Waitress web server & SSE progress streaming
+├── storage.py              # Dual persistence backend (SQLite default / MongoDB Atlas)
+├── preprocess.py           # Cellpose segmentation, tiling & initial UMAP
+├── update_clusters.py      # Active-learning fine-tuning, autoencoder & supervised UMAP
+├── update_celladder.py     # Manual lasso cell addition & deletion
+├── model_train.py          # Virchow2 multi-head classifier training
+├── model_predict.py        # Batch inference & valid-combination decoding
+├── mitotic_train.py        # Dedicated mitotic classifier training
+├── mitotic_predict.py      # Dedicated mitotic refinement
+├── templates/ & static/    # Web interface (Plotly.js + HTML5 Canvas)
+├── weights/                # Pretrained multi-head & mitotic checkpoints
+├── slides/                 # Preprocessed and browser-uploaded slides
+├── assets/                 # Documentation figures
+└── scripts/                # Local SQLite and cloud MongoDB launchers
+```
 
 ---
 
@@ -79,14 +147,6 @@ If you use AnnotateAnyCell in your research, please cite:
 }
 ```
 
----
-
-## Contact
-
-For questions or collaboration inquiries, please open an issue or contact the authors.
-
----
-
 ## License
 
-This project will be released under the MIT License.
+Released under the [MIT License](LICENSE).

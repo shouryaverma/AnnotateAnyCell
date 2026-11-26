@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Annotate Any Cell — Histopathology Annotator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+/* ── Themes ── */
+:root{
+  --bg:#0c0e14;--surf:#13151e;--surf2:#1e2130;--surf3:#262b3d;
+  --acc:#4d7cfe;--acc-dim:rgba(77,124,254,.18);
+  --grn:#22c55e;--amb:#f59e0b;--red:#f87171;--pur:#c084fc;
+  --brd:#3a3f58;--txt:#e8edf5;--mut:#7a8499;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#eef0f6;--surf:#ffffff;--surf2:#f2f4fa;--surf3:#e4e8f4;
+  --acc:#1a3fd4;--acc-dim:rgba(26,63,212,.18);
+  --grn:#16a34a;--amb:#b45309;--red:#dc2626;--pur:#7c3aed;
+  --brd:#6b7699;--txt:#000000;--mut:#1a2035;
+}
+:root[data-theme="light"] .slide-item.active{color:#000000}
+:root[data-theme="contrast"]{
+  --bg:#000000;--surf:#0d0d0d;--surf2:#1c1c1c;--surf3:#2a2a2a;
+  --acc:#00d4ff;--acc-dim:rgba(0,212,255,.18);
+  --grn:#00ff88;--amb:#ffcc00;--red:#ff4444;--pur:#dd88ff;
+  --brd:#aaaaaa;--txt:#ffffff;--mut:#cccccc;
+}
+/* ── Reset ── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px;display:flex}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--surf)}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+/* ── Sidebar ── */
+#sidebar{
+  width:320px;min-width:320px;background:var(--surf);
+  border-right:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;
+}
+.sb-logo{
+  padding:12px 14px;font-size:14px;font-weight:600;letter-spacing:.14em;color:var(--acc);
+  border-bottom:1px solid var(--brd);flex-shrink:0;display:flex;align-items:center;gap:6px;
+}
+.sb-logo::before{content:'◈';font-size:13px}
+#theme-btn{
+  margin-left:auto;background:var(--surf2);border:1px solid var(--brd);
+  color:var(--txt);font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;
+  font-family:var(--mono);letter-spacing:.04em;transition:all .15s;
+}
+.sb-scroll{overflow-y:auto;flex:1;padding-bottom:16px}
+.sb-section{
+  padding:10px 14px 4px;font-size:13px;font-weight:bold;letter-spacing:.12em;
+  color:var(--mut);text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;
+}
+.slide-item{
+  padding:7px 14px;cursor:pointer;border-left:3px solid transparent;
+  transition:all .15s;display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:6px;
+}
+.slide-item:hover{background:var(--surf2)}
+.slide-item.active{border-left-color:var(--acc);background:var(--acc-dim);color:#fff}
+.slide-name-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-badge{background:var(--surf3);border-radius:10px;padding:2px 7px;font-size:12px;color:var(--mut);flex-shrink:0}
+.slide-item.active .s-badge{background:var(--acc);color:#fff}
+.has-pred-dot{
+  display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--amb);margin-left:5px;vertical-align:middle;
+}
+.divider{border:none;border-top:1px solid var(--brd);margin:6px 0}
+/* login */
+.login-row{display:flex;gap:4px;padding:4px 14px}
+.login-row input{
+  flex:1;background:var(--surf2);border:1px solid var(--brd);color:var(--txt);width:0;
+  font-family:var(--mono);font-size:13px;padding:5px 7px;border-radius:4px;outline:none;
+}
+.login-row input:focus{border-color:var(--acc)}
+.login-row input::placeholder{color:var(--mut)}
+#user-status{font-size:12px;color:var(--mut);padding:2px 14px;margin-bottom:4px}
+#storage-badge{font-size:10px;padding:1px 6px;border-radius:3px;background:var(--surf2);color:var(--mut);border:1px solid var(--brd);letter-spacing:.06em}
+/* mode row */
+.f-group{padding:5px 14px}
+.f-row{display:flex;gap:2px;background:var(--surf2);border-radius:6px;padding:2px}
+.f-btn{
+  flex:1;padding:4px 4px;border:none;background:transparent;color:var(--mut);
+  font-family:var(--mono);font-size:13px;border-radius:4px;cursor:pointer;
+  letter-spacing:.05em;transition:all .15s;
+}
+.f-btn.on{background:var(--acc);color:#fff}
+/* filter boxes */
+.filter-head{padding:8px 14px 3px;font-size:13px;letter-spacing:.12em;color:var(--mut);text-transform:uppercase}
+.filter-boxes{display:flex;flex-wrap:wrap;gap:3px;padding:0 14px 6px}
+.fbox{
+  padding:3px 7px;border:1px solid var(--brd);background:var(--surf2);
+  color:var(--mut);font-family:var(--mono);font-size:13px;border-radius:4px;
+  cursor:pointer;letter-spacing:.04em;transition:all .13s;white-space:nowrap;
+}
+.fbox:hover{border-color:var(--mut);color:var(--txt)}
+.fbox.on.mitotic  {border-color:#1a3fd4;background:#1a3fd4;color:#ffffff}
+.fbox.on.chromatin{border-color:#7c3aed;background:#7c3aed;color:#ffffff}
+.fbox.on.nucleoli {border-color:#15803d;background:#15803d;color:#ffffff}
+.fbox.on.prominent{border-color:#b45309;background:#b45309;color:#ffffff}
+.fbox.on.shape    {border-color:#b91c1c;background:#b91c1c;color:#ffffff}
+.tile-count{font-size:13px;color:var(--mut);padding:6px 14px}
+.tile-count b{color:var(--txt)}
+/* umap sidebar controls */
+#color-btns,#slide-color-btns{display:flex;flex-wrap:wrap;gap:3px;padding:3px 14px 6px}
+#color-btns .f-btn,#slide-color-btns .f-btn{flex:none;font-size:13px;padding:3px 7px;border-radius:4px}
+#version-select{
+  display:block;width:calc(100% - 28px);margin:3px 14px;font-size:13px;
+  background:var(--surf2);color:var(--txt);border:1px solid var(--brd);
+  border-radius:4px;padding:4px;font-family:var(--mono);
+}
+.ver-actions{display:flex;gap:4px;padding:3px 14px 5px}
+.btn-sm{
+  flex:1;padding:5px;font-size:13px;background:var(--surf2);color:var(--mut);
+  border:1px solid var(--brd);border-radius:4px;font-family:var(--mono);
+  cursor:pointer;letter-spacing:.05em;transition:all .13s;
+}
+.btn-sm:hover{color:var(--txt);border-color:var(--mut)}
+.btn-act{
+  display:block;width:calc(100% - 28px);margin:10px 14px;padding:7px;
+  background:var(--acc);color:#fff;border:none;border-radius:5px;
+  font-family:var(--mono);font-size:13px;cursor:pointer;letter-spacing:.06em;transition:opacity .13s;
+}
+.btn-act:hover{opacity:.88}
+.btn-act:disabled{opacity:.4;cursor:default}
+.btn-outline{
+  display:block;width:calc(100% - 28px);margin:8px 14px;padding:7px;
+  background:transparent;color:var(--acc);border:1px solid var(--acc);border-radius:5px;
+  font-family:var(--mono);font-size:13px;cursor:pointer;letter-spacing:.06em;transition:all .13s;
+}
+.btn-outline:hover{background:var(--acc);color:#fff}
+.btn-outline:disabled{opacity:.4;cursor:default}
+#recluster-prog,#upload-prog-box{display:none;padding:3px 14px 6px}
+.prog-bar{height:10px;background:var(--surf2);border-radius:5px;overflow:hidden}
+.prog-fill{height:100%;background:var(--grn);border-radius:5px;transition:width .3s}
+.prog-lbl{font-size:12px;color:var(--mut);text-align:center;margin-top:3px;word-break:break-word}
+/* ── Main ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.tab-group{display:flex;gap:2px;background:var(--surf2);border-radius:6px;padding:2px}
+.tab{
+  padding:5px 10px;border:none;background:transparent;color:var(--mut);
+  font-family:var(--mono);font-size:13px;border-radius:4px;cursor:pointer;
+  letter-spacing:.07em;transition:all .15s;
+}
+.tab.on{background:var(--acc);color:#fff}
+/* ── Views ── */
+#view-wrap{flex:1;position:relative;overflow:hidden}
+.view{position:absolute;inset:0;display:none}
+.view.active{display:flex}
+/* UMAP view */
+#umap-view{overflow:hidden}
+#umap-scatter{flex:1;min-width:0;min-height:0}
+#umap-side,#slide-side,#grid-side{
+  width:320px;min-width:320px;background:var(--surf);border-left:1px solid var(--brd);
+  display:flex;flex-direction:column;overflow-y:auto;
+}
+#umap-hover,#slide-info{padding:10px;border-bottom:1px solid var(--brd);min-height:360px;font-size:13px}
+.hover-hint{font-size:13px;color:var(--mut);text-align:center;margin-top:8px}
+/* Grid view */
+#grid-wrap{flex:1;overflow-y:auto;padding:10px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.card{background:var(--surf);border:1px solid var(--brd);border-radius:6px;overflow:hidden;cursor:pointer;transition:border-color .14s}
+.card:hover{border-color:var(--acc)}
+.card.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.card-hd{padding:4px 7px;display:flex;justify-content:space-between;align-items:center}
+.card-name{font-size:13px;color:var(--mut);letter-spacing:.04em}
+.src{font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.07em}
+.src.gt  {background:rgba(34,197,94,.12);color:#22c55e}
+.src.pred{background:rgba(245,158,11,.12);color:#f59e0b}
+.card-img-wrap{position:relative;aspect-ratio:1;overflow:hidden}
+.card-img{width:100%;height:100%;object-fit:cover;display:block}
+.card-status{position:absolute;top:4px;right:4px;font-size:9px;letter-spacing:.07em;padding:2px 5px;border-radius:3px}
+.card-status.seen {background:rgba(0,0,0,.6);color:var(--amb)}
+.card-status.saved{background:rgba(0,0,0,.6);color:var(--grn)}
+.prob-bar{height:3px;background:var(--surf2)}
+.prob-fill{height:100%;background:var(--acc);transition:width .3s}
+.card-tags{padding:4px 6px;display:flex;flex-wrap:wrap;gap:2px}
+.tag{font-size:11px;padding:2px 5px;border-radius:3px;background:var(--surf2);color:var(--mut);letter-spacing:.03em}
+.tag.v.mitotic  {background:#1a3fd4;color:#ffffff}
+.tag.v.chromatin{background:#7c3aed;color:#ffffff}
+.tag.v.nucleoli {background:#15803d;color:#ffffff}
+.tag.v.prominent{background:#b45309;color:#ffffff}
+.tag.v.shape    {background:#b91c1c;color:#ffffff}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--mut);gap:8px;font-size:14px;letter-spacing:.07em;text-align:center;padding:20px}
+.sym{font-size:32px}
+/* Slide view */
+#slide-view{overflow:hidden}
+#slide-plot-container{flex:1;position:relative;overflow:hidden}
+#slide-plotly{position:absolute;inset:0}
+/* Distribution plots */
+.dist-section{padding:8px}
+.dist-title{font-size:13px;letter-spacing:.1em;color:var(--mut);text-transform:uppercase;padding:4px 0 2px}
+.dist-plot{height:110px;border-radius:4px;overflow:hidden}
+/* ── Edit panel ── */
+#panel{
+  width:520px;position:fixed;right:-520px;top:0;bottom:0;background:var(--surf);
+  border-left:1px solid var(--brd);display:flex;flex-direction:column;
+  transition:right .2s;z-index:50;
+}
+#panel.open{right:0}
+.p-hd{padding:11px 13px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.p-title{font-size:13px;letter-spacing:.07em;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.close{background:none;border:none;color:var(--mut);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:3px}
+.close:hover{background:var(--surf2);color:var(--txt)}
+.p-body{flex:1;overflow-y:auto;padding:12px}
+.p-imgs{display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
+.p-img-wrap{position:relative;width:100%;background:var(--surf2);border:1px solid var(--brd);border-radius:5px;overflow:hidden}
+.p-img{width:100%;display:block;aspect-ratio:1;object-fit:cover}
+.red-box{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%, -50%);
+  width:20%;height:20%;
+  border:4px solid #ef4444;
+  pointer-events:none;
+  display:none;
+}
+.red-box.on{display:block}
+.ann-row{margin-bottom:10px}
+.ann-lbl{
+  font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);
+  margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;
+}
+.prob-txt{color:var(--amb);font-size:13px}
+.ann-boxes{display:flex;flex-wrap:wrap;gap:3px}
+.abox{
+  padding:4px 8px;border:1px solid var(--brd);background:var(--surf2);color:var(--mut);
+  font-family:var(--mono);font-size:13px;border-radius:5px;cursor:pointer;
+  letter-spacing:.04em;transition:all .13s;white-space:nowrap;
+}
+.abox:hover{border-color:var(--mut);color:var(--txt)}
+.abox.on.mitotic  {border-color:#1a3fd4;background:#1a3fd4;color:#ffffff}
+.abox.on.chromatin{border-color:#7c3aed;background:#7c3aed;color:#ffffff}
+.abox.on.nucleoli {border-color:#15803d;background:#15803d;color:#ffffff}
+.abox.on.prominent{border-color:#b45309;background:#b45309;color:#ffffff}
+.abox.on.shape    {border-color:#b91c1c;background:#b91c1c;color:#ffffff}
+#combo-warn{
+  display:none;margin-top:6px;padding:6px 8px;border-radius:4px;
+  background:rgba(245,158,11,.15);border:1px solid var(--amb);color:var(--amb);font-size:12px;
+}
+.p-foot{padding:10px 13px;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.st{min-height:16px;text-align:center;font-size:13px;letter-spacing:.06em}
+.p-foot-row{display:flex;gap:6px}
+.btn-save{flex:2;padding:8px;border:none;border-radius:6px;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.06em;cursor:pointer;background:var(--grn);color:#061a0f;transition:all .14s}
+.btn-save:hover{background:#16a34a}
+.btn-skip{flex:1;padding:8px;border:1px solid var(--brd);border-radius:6px;font-family:var(--mono);font-size:13px;cursor:pointer;background:var(--surf2);color:var(--mut);transition:all .14s}
+.btn-skip:hover{color:var(--txt)}
+.btn-delete{padding:7px;border:1px solid var(--red);border-radius:6px;font-family:var(--mono);font-size:13px;cursor:pointer;background:transparent;color:var(--red);transition:all .14s;letter-spacing:.06em}
+.btn-delete:hover{background:var(--red);color:#fff}
+.btn-add-cell{display:block;width:calc(100% - 28px);margin:10px 14px;padding:7px;border:1px solid var(--grn);border-radius:6px;font-family:var(--mono);font-size:13px;cursor:pointer;background:transparent;color:var(--grn);transition:all .14s;letter-spacing:.06em}
+.btn-add-cell:hover{background:var(--grn);color:#061a0f}
+.kbd-hint{font-size:11px;color:var(--mut);text-align:center;letter-spacing:.04em}
+/* ── Upload Modal ── */
+#upload-modal{
+  display:none;position:fixed;inset:0;background:rgba(12,14,20,.82);
+  z-index:90;align-items:center;justify-content:center;padding:16px;
+}
+#upload-modal.open{display:flex}
+.modal-card{
+  width:100%;max-width:460px;background:var(--surf);border:1px solid var(--brd);
+  border-radius:8px;overflow:hidden;display:flex;flex-direction:column;
+}
+.modal-hd{
+  padding:12px 16px;border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;
+}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:12px;font-size:13px}
+.drop-zone{
+  border:2px dashed var(--brd);border-radius:6px;padding:24px 16px;text-align:center;
+  cursor:pointer;transition:all .15s;color:var(--mut);background:var(--surf2);
+}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--acc);color:var(--txt)}
+.modal-input{
+  width:100%;background:var(--surf2);border:1px solid var(--brd);color:var(--txt);
+  font-family:var(--mono);font-size:13px;padding:7px 9px;border-radius:4px;outline:none;
+}
+.modal-input:focus{border-color:var(--acc)}
+.modal-note{font-size:12px;color:var(--mut);line-height:1.5}
+.modal-err{color:var(--red);font-size:12px;min-height:16px}
+.modal-foot{padding:12px 16px;border-top:1px solid var(--brd);display:flex;gap:8px;justify-content:flex-end}
+/* ── Loading overlay ── */
+#overlay{display:none;position:fixed;inset:0;background:rgba(12,14,20,.78);z-index:99;align-items:center;justify-content:center;flex-direction:column;gap:10px}
+#overlay.on{display:flex}
+.spin{width:18px;height:18px;border:2px solid var(--brd);border-top-color:var(--acc);border-radius:50%;animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.spin-lbl{font-size:14px;color:var(--mut);letter-spacing:.14em}
+</style>
+</head>
+<body>
+
+<div id="overlay"><div class="spin"></div><div class="spin-lbl">LOADING</div></div>
+
+<!-- ── Upload Slide Modal ── -->
+<div id="upload-modal">
+  <div class="modal-card">
+    <div class="modal-hd">
+      <span>UPLOAD &amp; PREPROCESS SLIDE</span>
+      <button class="close" onclick="closeUploadModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="drop-zone" id="drop-zone" onclick="$('slide-file-input').click()">
+        <div id="drop-zone-label">Click or drag &amp; drop a slide image here<br>
+          <span style="font-size:11px;opacity:.8">.PNG, .JPG, .TIF, .TIFF (max {{ max_slide_dim }}×{{ max_slide_dim }} px)</span>
+        </div>
+        <input type="file" id="slide-file-input" accept=".png,.jpg,.jpeg,.tif,.tiff" style="display:none" onchange="onSlideFileSelected(this.files[0])">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--mut);margin-bottom:4px;letter-spacing:.08em">SLIDE NAME (OPTIONAL)</div>
+        <input type="text" id="upload-slide-name" class="modal-input" placeholder="defaults to filename">
+      </div>
+      <div class="modal-note">
+        Runs Cellpose cell &amp; nuclear segmentation, cuts 128px &amp; 512px tiles, computes initial UMAP, and runs Virchow2 + MultiHead predictions automatically.
+      </div>
+      <div class="modal-err" id="upload-modal-err"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-sm" style="flex:none;padding:6px 14px" onclick="closeUploadModal()">CANCEL</button>
+      <button class="btn-save" id="upload-submit-btn" style="flex:none;padding:6px 16px" onclick="submitSlideUpload()">PREPROCESS SLIDE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Sidebar ── -->
+<aside id="sidebar">
+  <div class="sb-logo">ANNOTATE ANY CELL<button id="theme-btn" onclick="cycleTheme()">DARK</button></div>
+  <div class="sb-scroll">
+
+    <div class="sb-section">View Tab</div>
+    <div style="padding: 5px 14px;">
+      <div class="tab-group" style="display: flex; text-align: center;">
+        <button class="tab on" style="flex: 1;" onclick="setView('umap',this)">UMAP</button>
+        <button class="tab"    style="flex: 1;" onclick="setView('grid',this)">GRID</button>
+        <button class="tab"    style="flex: 1;" onclick="setView('slide',this)">SLIDE</button>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <span>User</span>
+      <span id="storage-badge">LOCAL</span>
+    </div>
+    <div class="login-row">
+      <input type="text" id="user-input" placeholder="username (e.g. demo)">
+      <button id="login-btn" class="btn-sm" style="flex:none;padding:5px 8px" onclick="doLoginClick()">LOGIN</button>
+    </div>
+
+    <div id="user-status"></div>
+
+    <hr class="divider">
+
+    <div class="sb-section">Slides</div>
+    <div id="slide-list"></div>
+    <button class="btn-outline" id="upload-slide-btn" onclick="openUploadModal()" disabled>+ UPLOAD NEW SLIDE</button>
+    <div id="upload-prog-box">
+      <div class="prog-bar"><div class="prog-fill" id="upload-prog-fill" style="width:0%"></div></div>
+      <div class="prog-lbl" id="upload-prog-lbl">0%</div>
+    </div>
+
+    <div class="tile-count" id="labeled-count-row" style="display:none">
+      <b id="labeled-count">0</b> labeled &nbsp;/&nbsp; <span id="total-count">0</span> total
+      <div class="prog-bar" style="margin-top:4px">
+        <div class="prog-fill" id="labeled-bar" style="width:0%;background:var(--grn)"></div>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <!-- UMAP controls -->
+    <div id="umap-controls" style="display:none">
+      <div class="sb-section">Version History</div>
+      <select id="version-select"><option value="">-- select version --</option></select>
+      <div class="ver-actions">
+        <button class="btn-sm" onclick="doUpload()">SAVE SNAPSHOT</button>
+        <button class="btn-sm" onclick="doLoadVersion()">LOAD</button>
+      </div>
+      <hr class="divider">
+      <button class="btn-act" id="recluster-btn" onclick="doRecluster()">UPDATE CLUSTERS</button>
+      <div id="recluster-prog">
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="prog-lbl" id="prog-lbl">0%</div>
+      </div>
+      <button class="btn-outline" onclick="downloadAnnotationCSV()">EXPORT CSV</button>
+    </div>
+
+    <!-- Slide controls -->
+    <div id="slide-controls" style="display:none">
+      <button class="btn-add-cell" id="add-cell-btn" onclick="toggleAddCellMode()">ADD CELL</button>
+      <div id="add-cell-hint" style="display:none;font-size:12px;color:var(--mut);line-height:1.5;padding:2px 14px;">
+        Hold left button and drag around a cell. Release to close polygon. Press Esc to cancel.
+      </div>
+      <hr class="divider">
+      <button class="btn-act" onclick="downloadAnnotationCSV()">EXPORT CSV</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<div id="main">
+  <span id="slide-title" style="display: none;">SELECT A SLIDE</span>
+
+  <div id="view-wrap">
+    <!-- UMAP view -->
+    <div id="umap-view" class="view active">
+      <div id="umap-scatter"></div>
+      <div id="umap-side">
+        <div id="umap-hover"><div class="hover-hint">Hover a point to preview</div></div>
+        <div class="dist-section">
+          <div class="dist-title">Cell Size</div>
+          <div id="dist-cell-umap" class="dist-plot"></div>
+          <div class="dist-title">N/C Ratio</div>
+          <div id="dist-nc-umap" class="dist-plot"></div>
+        </div>
+        <hr class="divider">
+        <div style="padding: 10px; border-bottom: 1px solid var(--brd);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="dist-title" style="padding: 0 0 6px 0;">Point Size</div>
+            <div style="font-size: 12px; color: var(--mut);" id="pt-size-val">6px</div>
+          </div>
+          <input type="range" min="1" max="25" value="6" style="width: 100%; margin-bottom: 14px; cursor: pointer;" oninput="updatePointSize(this.value)">
+          <div class="dist-title" style="padding: 0 0 6px 0;">Color By</div>
+          <div id="color-btns" style="padding: 0; display: flex; flex-wrap: wrap; gap: 4px;">
+            <button class="f-btn on" onclick="colorUmap(null,this)">DEFAULT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid view -->
+    <div id="grid-view" class="view">
+      <div id="grid-wrap"><div id="grid"><div class="empty"><div class="sym">◈</div>Select a slide</div></div></div>
+      <div id="grid-side">
+        <div style="padding:10px;border-bottom:1px solid var(--brd)">
+          <div class="dist-title" style="padding:0 0 6px 0">CLASS MODE</div>
+          <div class="f-row">
+            <button class="f-btn on" id="mode-gt"   onclick="setGridMode('labeled',this)">GT</button>
+            <button class="f-btn"    id="mode-pred" onclick="setGridMode('pred',this)">PRED</button>
+            <button class="f-btn"    id="mode-all"  onclick="setGridMode('all',this)">ALL</button>
+          </div>
+        </div>
+        <div id="filter-boxes-root"></div>
+        <div style="padding:4px 14px 8px">
+          <button class="btn-sm" style="width:100%" onclick="clearFilters()">CLEAR FILTERS</button>
+        </div>
+        <div class="tile-count" id="cntLbl" style="border-bottom:1px solid var(--brd)"><b>0</b> tiles</div>
+        <div class="dist-section">
+          <div class="dist-title">Cell Size</div>
+          <div id="dist-cell-grid" class="dist-plot"></div>
+          <div class="dist-title">N/C Ratio</div>
+          <div id="dist-nc-grid" class="dist-plot"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide view -->
+    <div id="slide-view" class="view">
+      <div id="slide-plot-container">
+        <img id="slide-bg-img" style="position:absolute;display:none;pointer-events:none;">
+        <div id="slide-plotly"></div>
+        <canvas id="slide-canvas" style="position:absolute;top:0;left:0;pointer-events:none;"></canvas>
+      </div>
+
+      <div id="slide-side">
+        <div id="slide-info"><span style="color:var(--mut);font-size:13px">Click or hover a cell box to view details</span></div>
+        <div class="dist-section">
+          <div class="dist-title">Cell Size</div>
+          <div id="dist-cell-slide" class="dist-plot"></div>
+          <div class="dist-title">N/C Ratio</div>
+          <div id="dist-nc-slide" class="dist-plot"></div>
+        </div>
+        <hr class="divider">
+        <div style="padding: 10px; border-bottom: 1px solid var(--brd);">
+          <div class="dist-title" style="padding: 0 0 6px 0;">Toggle Layer</div>
+          <div id="slide-img-toggle" style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px;"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="dist-title" style="padding: 0 0 6px 0;">Line Thickness</div>
+            <div style="font-size: 12px; color: var(--mut);" id="slide-thickness-val">2px</div>
+          </div>
+          <input type="range" min="1" max="10" value="2" style="width: 100%; margin-bottom: 14px; cursor: pointer;" oninput="updateSlideLineThickness(this.value)">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="dist-title" style="padding: 0 0 6px 0;">Dim Overlay</div>
+            <div style="font-size: 12px; color: var(--mut);" id="slide-dim-val">0%</div>
+          </div>
+          <input type="range" min="0" max="0.92" step="0.01" value="0" style="width: 100%; margin-bottom: 14px; cursor: pointer;" oninput="updateSlideDimAlpha(this.value)">
+          <div class="dist-title" style="padding: 0 0 6px 0;">Color By</div>
+          <div id="slide-color-btns" style="padding: 0; display: flex; flex-wrap: wrap; gap: 4px;">
+            <button class="f-btn on" onclick="colorSlide(null,this)">DEFAULT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit panel ── -->
+<div id="panel">
+  <div class="p-hd">
+    <span class="p-title" id="p-name" style="flex:1;font-size:14px;font-weight:bold;">—</span>
+    <span id="p-ann-status" style="flex:1;text-align:center;font-size:13px;font-weight:bold;letter-spacing:.08em;font-family:var(--mono)"></span>
+    <div style="display:flex;gap:6px;flex:1;justify-content:flex-end;">
+      <button id="red-box-btn" class="btn-sm" onclick="toggleRedBox()" style="flex:none;padding:3px 6px;">BOX ON</button>
+      <button class="close" onclick="closePanel()">✕</button>
+    </div>
+  </div>
+  <div class="p-body">
+    <div class="p-imgs">
+      <div>
+        <div class="p-img-wrap">
+          <img class="p-img" id="p-raw" src="" alt="raw" onclick="onRawImageClick(event)" style="cursor: crosshair;" title="Click any neighboring cell to jump to it">
+          <div class="red-box" id="rb-raw"></div>
+        </div>
+      </div>
+    </div>
+    <div id="ann-fields"></div>
+    <div id="combo-warn"></div>
+  </div>
+  <div class="p-foot">
+    <div class="st" id="st"></div>
+    <div class="p-foot-row">
+      <button class="btn-save" onclick="doSave()">SAVE CHANGES</button>
+      <button class="btn-skip" onclick="clearEditLabels()">CLEAR</button>
+    </div>
+    <div class="p-foot-row">
+      <button class="btn-skip" onclick="doPrev()">← PREV</button>
+      <button class="btn-skip" onclick="doNext()">NEXT →</button>
+    </div>
+    <button class="btn-delete" id="btn-delete" onclick="doDeleteCell()" style="display:none">DELETE MANUAL CELL</button>
+    <div class="kbd-hint">Enter: Save · ←/→: Prev/Next · Esc: Close</div>
+  </div>
+</div>
+
+<script>
+  const LABEL_COLS    = {{ label_cols|safe }};
+  const LABEL_OPTIONS = {{ label_options|safe }};
+  const LABEL_INT     = {{ label_int|safe }};
+  const LABEL_STR     = {{ label_str|safe }};
+  const MAX_SLIDE_DIM = {{ max_slide_dim|int }};
+</script>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+</html>
